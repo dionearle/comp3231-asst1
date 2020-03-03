@@ -13,6 +13,9 @@
 */
 
 data_item_t * item_buffer[BUFFER_SIZE];
+int producer_index, consumer_index;
+
+struct semaphore *mutex, *empty, *full;
 
 
 /* consumer_receive() is called by a consumer to request more data. It
@@ -23,19 +26,16 @@ data_item_t * consumer_receive(void)
 {
         data_item_t * item;
 
+        P(full);
+        P(mutex);
 
-        /*****************
-         * Remove everything just below when you start.
-         * The following code is just to trick the compiler to compile
-         * the incomplete initial code
-         ****************/
-
-        (void) item_buffer;
-        item = NULL;
-
-        /******************
-         * Remove above here
-         */
+        // receive item
+        item = item_buffer[consumer_index];
+        consumer_index = (consumer_index + 1) % BUFFER_SIZE;
+        
+        V(mutex);
+        V(empty); 
+        
 
         return item;
 }
@@ -46,7 +46,14 @@ data_item_t * consumer_receive(void)
 
 void producer_send(data_item_t *item)
 {
-        (void) item; /* Remove this when you add your code */
+        P(empty);
+        P(mutex);
+        
+        // send item
+        item_buffer[producer_index] = item;
+        producer_index = (producer_index + 1) % BUFFER_SIZE;
+        V(mutex);
+        V(full);
 }
 
 
@@ -57,9 +64,24 @@ void producer_send(data_item_t *item)
 
 void producerconsumer_startup(void)
 {
+
+   producer_index = 0;
+   consumer_index = 0;
+
+   mutex = sem_create("mutex", 1);
+   KASSERT(mutex != 0);
+
+   empty = sem_create("empty", BUFFER_SIZE);
+   KASSERT(empty != 0);
+
+   full = sem_create("full", 0);
+   KASSERT(full != 0);
 }
 
 /* Perform any clean-up you need here */
 void producerconsumer_shutdown(void)
 {
+   sem_destroy(mutex);
+   sem_destroy(empty);
+   sem_destroy(full);
 }

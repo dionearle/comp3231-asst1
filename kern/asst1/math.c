@@ -41,6 +41,8 @@ struct semaphore *finished;
  * **********************************************************************
  */
 
+struct lock *math_lock;
+
 
 
 /*
@@ -80,6 +82,8 @@ static void adder(void * unusedpointer, unsigned long addernumber)
                 /* loop doing increments until we achieve the overall number
                    of increments */
 
+                lock_acquire(math_lock);
+
                 a = counter;
                 if (a < NADDS) {
 
@@ -88,6 +92,8 @@ static void adder(void * unusedpointer, unsigned long addernumber)
                         math_test_1(addernumber); /* We use this for testing, please leave this here. */
 
                         b = counter;
+
+                        lock_release(math_lock);
 
                         math_test_2(addernumber); /* We use this for testing, please leave this here.
                                                    * Also note it should NOT execute mutually exclusively
@@ -109,6 +115,7 @@ static void adder(void * unusedpointer, unsigned long addernumber)
                                         addernumber, a, b) ;
                         }
                 } else {
+                        lock_release(math_lock);
                         flag = 0;
                 }
         }
@@ -162,6 +169,12 @@ int maths (int data1, char **data2)
          * ********************************************************************
          */
 
+        math_lock = lock_create("math lock");
+
+        if (math_lock == NULL) {
+                panic("maths: lock create failed");
+        }
+
 
         /*
          * Start NADDERS adder() threads.
@@ -209,6 +222,8 @@ int maths (int data1, char **data2)
          * INSERT ANY CLEANUP CODE YOU REQUIRE HERE
          * **********************************************************************
          */
+
+        lock_destroy(math_lock);
 
 
         /* clean up the semaphore we allocated earlier */
